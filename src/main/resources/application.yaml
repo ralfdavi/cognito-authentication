@@ -1,0 +1,11 @@
+spring:
+    application.name: cognito-lazy-migration
+
+aws:
+    cognito:
+        userPoolId: 
+        clientId: 
+        clientSecret: 
+    region: us-east-2
+    accessKey: 
+    secretKey: 
