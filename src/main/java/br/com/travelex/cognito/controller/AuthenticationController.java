@@ -39,9 +39,6 @@ public class AuthenticationController {
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest request) {
         try {
-            Map<String, String> attributes = new HashMap<>();
-            attributes.put("custom:authCookie", "717.388.060-22|ECommerce|20250525.175032457|2760|1747761920143|MCwCFGKTo2rHaC6GF3TOgVzQee3vFbknAhRwLmUZMG6FMt6fk7M6OR4mVaUw0g==");
-            cognitoAuthService.updateUserAttributes(request.getUsername(), attributes);
 
             AuthenticationResponse result = 
                 cognitoAuthService.authenticateUser(request.getUsername(), request.getPassword());
@@ -130,6 +127,19 @@ public class AuthenticationController {
             );
             return ResponseEntity.ok("Senha redefinida com sucesso");
             //return ResponseEntity.ok(new MessageResponseDto("Código de recuperação enviado para o email cadastrado"));
+
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/resend-code")
+    public ResponseEntity<?> resendCode(@RequestBody LoginRequest request) {
+        try {
+            cognitoAuthService.resendConfirmationCode(
+                    request.getUsername()
+            );
+            return ResponseEntity.ok("Código de confirmação reenviado com sucesso");
 
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", e.getMessage()));

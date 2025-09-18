@@ -76,15 +76,14 @@ public class CognitoAuthService {
             }
 
             // Criar solicitação de autenticação
-            AdminInitiateAuthRequest authRequest = AdminInitiateAuthRequest.builder()
-                    .userPoolId(userPoolId)
+            var authRequest = InitiateAuthRequest.builder()
                     .clientId(clientId)
-                    .authFlow(AuthFlowType.ADMIN_USER_PASSWORD_AUTH)
+                    .authFlow(AuthFlowType.USER_PASSWORD_AUTH)
                     .authParameters(authParams)
                     .build();
 
             // Executar autenticação
-            AdminInitiateAuthResponse authResponse = cognitoClient.adminInitiateAuth(authRequest);
+            InitiateAuthResponse authResponse = cognitoClient.initiateAuth(authRequest);
             
             // Verificar se a autenticação foi bem-sucedida
             if (authResponse.authenticationResult() != null) {
@@ -232,7 +231,7 @@ public class CognitoAuthService {
                     .clientId(clientId)
                     .username(username)
                     .confirmationCode(confirmationCode)
-                    .secretHash(calculateSecretHash(username))
+                    //.secretHash(calculateSecretHash(username))
                     .password(newPassword)
                     .build();
 
@@ -244,6 +243,25 @@ public class CognitoAuthService {
             throw new RuntimeException("Código de confirmação expirado", e);
         } catch (Exception e) {
             throw new RuntimeException("Erro ao confirmar redefinição de senha: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Reenvia o código de confirmação
+     */
+    public void resendConfirmationCode(String username) {
+        try {
+
+            ResendConfirmationCodeRequest request = ResendConfirmationCodeRequest.builder()
+                    .clientId(clientId)
+                    .username(username)
+                    .secretHash(calculateSecretHash(username))
+                    .build();
+
+            // DOC: https://docs.aws.amazon.com/cognito-user-identity-pools/latest/APIReference/API_ResendConfirmationCode.html
+            cognitoClient.resendConfirmationCode(request);
+        } catch (Exception e) {
+            throw new RuntimeException("Erro ao reenviar código de confirmação: " + e.getMessage(), e);
         }
     }
     
@@ -395,8 +413,10 @@ public class CognitoAuthService {
                     "HmacSHA256"
             );
             mac.init(key);
-            mac.update(username.getBytes(StandardCharsets.UTF_8));
-            byte[] result = mac.doFinal(clientId.getBytes(StandardCharsets.UTF_8));
+
+            // A ordem correta é: username + clientId
+            String message = username + clientId;
+            byte[] result = mac.doFinal(message.getBytes(StandardCharsets.UTF_8));
             return Base64.getEncoder().encodeToString(result);
         } catch (Exception e) {
             throw new RuntimeException("Erro ao calcular SECRET_HASH", e);
