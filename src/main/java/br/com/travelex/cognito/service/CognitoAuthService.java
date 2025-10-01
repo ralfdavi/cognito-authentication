@@ -115,6 +115,56 @@ public class CognitoAuthService {
         }
     }
 
+    public AuthenticationResponse authenticateUserWithSRP(String username, String password) {
+        // ... client setup ...
+
+        // 1. Initiate SRP Auth
+        Map<String, String> authParameters = new HashMap<>();
+        authParameters.put("USERNAME", username);
+        // ... Add SRP_A and other required parameters based on SRP calculations ...
+
+
+        InitiateAuthRequest initiateAuthRequest = InitiateAuthRequest.builder()
+                .authFlow(AuthFlowType.USER_SRP_AUTH)
+                .clientId(clientId)
+                .authParameters(authParameters)
+                .build();
+
+        InitiateAuthResponse initiateAuthResponse = cognitoClient.initiateAuth(initiateAuthRequest);
+
+        // 2. Respond to Challenge (e.g., PASSWORD_VERIFIER)
+        if (initiateAuthResponse.challengeName() == ChallengeNameType.PASSWORD_VERIFIER) {
+            Map<String, String> challengeResponses = new HashMap<>();
+            challengeResponses.put("USERNAME", username);
+            // ... Add PASSWORD_CLAIM_SECRET_BLOCK, TIMESTAMP, and other required parameters ...
+
+            RespondToAuthChallengeRequest respondToAuthChallengeRequest = RespondToAuthChallengeRequest.builder()
+                    .challengeName(ChallengeNameType.PASSWORD_VERIFIER)
+                    .clientId(clientId)
+                    .challengeResponses(challengeResponses)
+                    .session(initiateAuthResponse.session()) // Pass the session from the initiateAuth response
+                    .build();
+
+            RespondToAuthChallengeResponse respondToAuthChallengeResponse = cognitoClient.respondToAuthChallenge(respondToAuthChallengeRequest);
+
+            // Authentication successful, retrieve tokens
+            String idToken = respondToAuthChallengeResponse.authenticationResult().idToken();
+            System.out.println("ID Token: " + idToken);
+
+            
+            // Verificar se a autenticação foi bem-sucedida
+            if (respondToAuthChallengeResponse.authenticationResult() != null) {
+                return new AuthenticationResponse(
+                        respondToAuthChallengeResponse.authenticationResult().accessToken(),
+                        respondToAuthChallengeResponse.authenticationResult().idToken(),
+                        respondToAuthChallengeResponse.authenticationResult().refreshToken(),
+                        respondToAuthChallengeResponse.authenticationResult().expiresIn()
+                );
+            }
+        }
+        return null;
+    }
+
     /**
      * Atualiza tokens usando um refresh token
      * @param idToken 
@@ -585,6 +635,21 @@ public class CognitoAuthService {
         } catch (Exception e) {
             //logger.error("Erro ao extrair claims do token: {}", e.getMessage(), e);
             throw new RuntimeException("Falha ao processar token JWT: " + e.getMessage(), e);
+        }
+    }
+    
+    public record AuthResult(boolean success,
+                             String idToken,
+                             String accessToken,
+                             String refreshToken,
+                             Integer expiresIn,
+                             String mfaSession,
+                             String nextChallenge) {
+        public static AuthResult success(String id, String at, String rt, Integer exp) {
+            return new AuthResult(true, id, at, rt, exp, null, null);
+        }
+        public static AuthResult pendingMfa(String session, String challenge) {
+            return new AuthResult(false, null, null, null, null, session, challenge);
         }
     }
 

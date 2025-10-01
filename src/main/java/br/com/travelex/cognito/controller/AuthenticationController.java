@@ -58,6 +58,29 @@ public class AuthenticationController {
             return ResponseEntity.status(500).body(Map.of("error", "Erro interno: " + e.getMessage()));
         }
     }
+
+    @PostMapping("/login-srp")
+    public ResponseEntity<?> authenticateUserWithSRP(@RequestBody LoginRequest request) {
+        try {
+
+            AuthenticationResponse result = 
+                cognitoAuthService.authenticateUserWithSRP(request.getUsername(), request.getPassword());
+            
+            // Criar resposta com tokens
+            Map<String, Object> response = new HashMap<>();
+            response.put("accessToken", result.getAccessToken());
+            response.put("idToken", result.getIdToken());
+            response.put("refreshToken", result.getRefreshToken());
+            response.put("expiresIn", result.getExpiresIn());
+            
+            return ResponseEntity.ok(response);
+
+        } catch (AuthenticationException e) {
+            return ResponseEntity.status(401).body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("error", "Erro interno: " + e.getMessage()));
+        }
+    }
     
     @PostMapping("/refresh")
     public ResponseEntity<?> login(@RequestBody RefreshTokenRequest refreshToken,
